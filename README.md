@@ -1,2 +1,2 @@
 # mewtex
-Experimentation with implemention a mutex type
+Experimentation with implementation of a mutex type
