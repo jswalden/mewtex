@@ -74,7 +74,7 @@ impl<T> Mewtex<T> {
                 Ordering::Acquire,
                 Ordering::Relaxed,
             ) {
-                atomic_wait::wait(&self.locked, UNLOCKED);
+                atomic_wait::wait(&self.locked, LOCKED);
             } else {
                 break;
             }
@@ -97,9 +97,9 @@ fn main() {
     for i in 0..NUM_REFS {
         let arcref = str_vec.clone();
         let t = thread::spawn(move || {
-            let mut g = arcref.lock();
-
             thread::sleep(Duration::from_millis(rand::thread_rng().gen_range(0..64)));
+
+            let mut g = arcref.lock();
             g.push(format!("thread {}", i));
         });
 
