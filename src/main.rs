@@ -33,7 +33,7 @@ impl<'a, T> DerefMut for MewtexGuard<'a, T> {
 
 impl<'a, T> Drop for MewtexGuard<'a, T> {
     fn drop(&mut self) {
-        let locked = &self.mewtex.locked;
+        let locked = &self.mewtex.state;
 
         // This pairs with the Acquire in Mewtex::lock.
         locked.store(UNLOCKED, Ordering::Release);
@@ -48,7 +48,7 @@ impl<'a, T> MewtexGuard<'a, T> {
 }
 
 struct Mewtex<T> {
-    locked: AtomicU32,
+    state: AtomicU32,
     value: UnsafeCell<T>,
 }
 
@@ -61,20 +61,20 @@ const LOCKED: u32 = 1;
 impl<T> Mewtex<T> {
     fn new(t: T) -> Mewtex<T> {
         Mewtex {
-            locked: AtomicU32::new(UNLOCKED),
+            state: AtomicU32::new(UNLOCKED),
             value: UnsafeCell::new(t),
         }
     }
 
     fn lock(&self) -> MewtexGuard<T> {
         loop {
-            if let Err(_) = self.locked.compare_exchange_weak(
+            if let Err(_) = self.state.compare_exchange_weak(
                 UNLOCKED,
                 LOCKED,
                 Ordering::Acquire,
                 Ordering::Relaxed,
             ) {
-                atomic_wait::wait(&self.locked, LOCKED);
+                atomic_wait::wait(&self.state, LOCKED);
             } else {
                 break;
             }
