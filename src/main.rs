@@ -12,8 +12,6 @@ struct MewtexGuard<'a, T> {
     mewtex: &'a Mewtex<T>,
 }
 
-unsafe impl<'a, T> Send for MewtexGuard<'a, T> where T: Send {}
-
 impl<'a, T> Deref for MewtexGuard<'a, T> {
     type Target = T;
 
@@ -33,11 +31,11 @@ impl<'a, T> DerefMut for MewtexGuard<'a, T> {
 
 impl<'a, T> Drop for MewtexGuard<'a, T> {
     fn drop(&mut self) {
-        let locked = &self.mewtex.state;
+        let state = &self.mewtex.state;
 
         // This pairs with the Acquire in Mewtex::lock.
-        locked.store(UNLOCKED, Ordering::Release);
-        atomic_wait::wake_one(locked);
+        state.store(UNLOCKED, Ordering::Release);
+        atomic_wait::wake_one(state);
     }
 }
 
@@ -52,8 +50,7 @@ struct Mewtex<T> {
     value: UnsafeCell<T>,
 }
 
-unsafe impl<T> Sync for Mewtex<T> {}
-unsafe impl<T> Send for Mewtex<T> {}
+unsafe impl<T> Sync for Mewtex<T> where T: Send {}
 
 const UNLOCKED: u32 = 0;
 const LOCKED: u32 = 1;
@@ -89,7 +86,11 @@ impl<T> Mewtex<T> {
 }
 
 fn main() {
-    let str_vec = Arc::new(Mewtex::new(vec![]));
+    let mut m = Mewtex::new(vec![]);
+
+    m.get_mut().push("pre-passoff".to_string());
+
+    let str_vec = Arc::new(m);
 
     const NUM_REFS: usize = 8;
 
